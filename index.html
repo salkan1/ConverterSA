@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Converter Neo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <!-- Uygulama gibi görünmesi için (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Converter Neo">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      height: 100dvh;
+      padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 14px) 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .header {
+      font-size: 20px;
+      font-weight: 700;
+      padding: 8px 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-badge {
+      font-size: 13px;
+      color: #8e8e93;
+      background: rgba(142, 142, 147, 0.15);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .status-badge.ok   { color: #34c759; background: rgba(52, 199, 89, 0.15); }
+    .status-badge.warn { color: #ff9f0a; background: rgba(255, 159, 10, 0.15); }
+
+    .currency-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 10px 0;
+      flex-grow: 1;
+      justify-content: center;
+    }
+
+    .currency-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1c1c1e;
+      border-radius: 18px;
+      padding: 14px 20px;
+      min-height: 66px;
+      border: 1.5px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .currency-row.active {
+      background: #2c251a;
+      border-color: #d4a359;
+    }
+
+    .currency-label {
+      font-weight: 600;
+      font-size: 19px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .value-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      min-width: 0;
+      margin-left: 12px;
+    }
+
+    .currency-expr {
+      font-size: 13px;
+      color: #a08560;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      display: none;
+    }
+    .currency-row.active .currency-expr.show { display: block; }
+
+    .currency-value {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .currency-row.active .currency-value { color: #d4a359; }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding-bottom: 4px;
+    }
+
+    .btn {
+      background: #333333;
+      color: white;
+      border: none;
+      font-size: 28px;
+      height: 64px;
+      border-radius: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+      transition: opacity 0.1s;
+    }
+    .btn:active { opacity: 0.6; }
+    .btn-action { background: #a5a5a5; color: black; }
+    .btn-orange { background: #ff9f0a; color: white; font-size: 32px; }
+    .btn-zero { grid-column: span 2; justify-content: flex-start; padding-left: 28px; }
+
+    @media (max-height: 700px) {
+      .btn { height: 54px; font-size: 24px; }
+      .currency-row { min-height: 56px; padding: 10px 18px; }
+      .currency-container { gap: 8px; }
+      .keypad { gap: 10px; }
+    }
+
+    .currency-label { cursor: pointer; }
+    .chev { font-size: 12px; color: #8e8e93; margin-left: -4px; }
+    .cur-name { display: block; font-size: 11px; font-weight: 500; color: #8e8e93; margin-top: 1px; }
+    .lbl-text { display: flex; flex-direction: column; line-height: 1.1; }
+
+    /* Kur seçme paneli */
+    .sheet-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; align-items: flex-end; justify-content: center; z-index: 10;
+    }
+    .sheet-bg.open { display: flex; }
+    .sheet {
+      width: 100%; max-width: 520px; max-height: 78dvh;
+      background: #1c1c1e; border-radius: 22px 22px 0 0;
+      padding: 10px 0 calc(env(safe-area-inset-bottom) + 10px);
+      display: flex; flex-direction: column;
+      animation: up 0.2s ease;
+    }
+    @keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .sheet-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 20px 12px; font-size: 17px; font-weight: 700;
+      border-bottom: 1px solid #2c2c2e;
+    }
+    .sheet-head button {
+      background: none; border: none; color: #ff9f0a; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    .sheet-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 0; }
+    .opt {
+      display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer;
+    }
+    .opt:active { background: #2c2c2e; }
+    .opt .f { font-size: 24px; }
+    .opt .c { font-weight: 600; font-size: 17px; width: 48px; }
+    .opt .n { color: #8e8e93; font-size: 14px; flex: 1; }
+    .opt .tag { font-size: 12px; color: #8e8e93; }
+    .opt.cur .c, .opt.cur .tag { color: #d4a359; }
+    .sheet-foot { padding: 8px 20px 0; border-top: 1px solid #2c2c2e; }
+    .sheet-foot button {
+      width: 100%; padding: 12px; border-radius: 14px; border: none;
+      background: #2c2c2e; color: #fff; font-size: 15px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span>Converter Neo</span>
+    <span id="status" class="status-badge">Yükleniyor...</span>
+  </div>
+
+  <div class="currency-container" id="rows"></div>
+
+  <div class="keypad">
+    <button class="btn btn-action" data-k="C">C</button>
+    <button class="btn btn-action" data-k="DEL">⌫</button>
+    <button class="btn btn-action" data-k="%">%</button>
+    <button class="btn btn-orange" data-k="÷">÷</button>
+
+    <button class="btn" data-k="7">7</button>
+    <button class="btn" data-k="8">8</button>
+    <button class="btn" data-k="9">9</button>
+    <button class="btn btn-orange" data-k="×">×</button>
+
+    <button class="btn" data-k="4">4</button>
+    <button class="btn" data-k="5">5</button>
+    <button class="btn" data-k="6">6</button>
+    <button class="btn btn-orange" data-k="-">−</button>
+
+    <button class="btn" data-k="1">1</button>
+    <button class="btn" data-k="2">2</button>
+    <button class="btn" data-k="3">3</button>
+    <button class="btn btn-orange" data-k="+">+</button>
+
+    <button class="btn btn-zero" data-k="0">0</button>
+    <button class="btn" data-k=".">,</button>
+    <button class="btn btn-orange" data-k="=">=</button>
+  </div>
+
+  <!-- Kur değiştirme paneli -->
+  <div class="sheet-bg" id="sheetBg">
+    <div class="sheet">
+      <div class="sheet-head">
+        <span id="sheetTitle">Kur seç</span>
+        <button id="sheetClose">Kapat</button>
+      </div>
+      <div class="sheet-list" id="sheetList"></div>
+      <div class="sheet-foot"><button id="resetBtn">Varsayılan kurlara dön</button></div>
+    </div>
+  </div>
+
+  <script>
+    /* ================== AYARLAR ================== */
+    // Apps Script "Web uygulaması" dağıtım linkini buraya yapıştırın (…/exec ile biter).
+    const API_URL = "BURAYA_APPS_SCRIPT_EXEC_LINKI";
+
+    // İlk açılışta gelen 5 kur
+    const DEFAULT_SELECTED = ['USD', 'EUR', 'TRY', 'GBP', 'CNY'];
+
+    // TCMB'nin yayımladığı kurlar (seçim listesinde bu sırayla görünür)
+    const META = {
+      TRY: ['🇹🇷', 'Türk Lirası'],
+      USD: ['🇺🇸', 'ABD Doları'],
+      EUR: ['🇪🇺', 'Euro'],
+      GBP: ['🇬🇧', 'İngiliz Sterlini'],
+      CHF: ['🇨🇭', 'İsviçre Frangı'],
+      CNY: ['🇨🇳', 'Çin Yuanı'],
+      JPY: ['🇯🇵', 'Japon Yeni'],
+      CAD: ['🇨🇦', 'Kanada Doları'],
+      AUD: ['🇦🇺', 'Avustralya Doları'],
+      SAR: ['🇸🇦', 'Suudi Arabistan Riyali'],
+      AED: ['🇦🇪', 'BAE Dirhemi'],
+      QAR: ['🇶🇦', 'Katar Riyali'],
+      KWD: ['🇰🇼', 'Kuveyt Dinarı'],
+      RUB: ['🇷🇺', 'Rus Rublesi'],
+      AZN: ['🇦🇿', 'Azerbaycan Manatı'],
+      DKK: ['🇩🇰', 'Danimarka Kronu'],
+      SEK: ['🇸🇪', 'İsveç Kronu'],
+      NOK: ['🇳🇴', 'Norveç Kronu'],
+      BGN: ['🇧🇬', 'Bulgar Levası'],
+      RON: ['🇷🇴', 'Rumen Leyi'],
+      KRW: ['🇰🇷', 'Güney Kore Wonu'],
+      PKR: ['🇵🇰', 'Pakistan Rupisi']
+    };
+    /* ============================================= */
+
+    const OPS = ['+', '-', '×', '÷'];
+    let currentInput = "0";      // aktif para birimindeki ifade (ör. "167.06+20")
+    let activeCurrency = (() => { try { return localStorage.getItem('cn_active') || "EUR"; } catch (e) { return "EUR"; } })();
+    let freshEntry = false;      // true: rakam yeni sayı başlatır, işlem tuşu mevcut değerle devam eder
+    let rates = { USD: 1, EUR: 0.86, TRY: 41.5, GBP: 0.74, CNY: 7.1 };   // 1 USD karşılıkları (ilk açılış yedeği)
+    let selected = loadSelected();
+    let editIndex = -1;          // panelde hangi satır değiştiriliyor
+
+    function loadSelected() {
+      try {
+        const s = JSON.parse(localStorage.getItem('cn_selected') || 'null');
+        if (Array.isArray(s) && s.length === DEFAULT_SELECTED.length) return s;
+      } catch (e) {}
+      return DEFAULT_SELECTED.slice();
+    }
+    function saveSelected() {
+      try { localStorage.setItem('cn_selected', JSON.stringify(selected)); } catch (e) {}
+    }
+    const meta = code => META[code] || ['🏳️', code];
+
+    // ---------- Satırlar ----------
+    const rowsEl = document.getElementById('rows');
+
+    function buildRows() {
+      if (!selected.includes(activeCurrency)) activeCurrency = selected[0];
+      try { localStorage.setItem('cn_active', activeCurrency); } catch (e) {}
+      rowsEl.innerHTML = '';
+      selected.forEach((code, i) => {
+        const [flag, name] = meta(code);
+        const row = document.createElement('div');
+        row.className = 'currency-row' + (code === activeCurrency ? ' active' : '');
+        row.dataset.code = code;
+        row.innerHTML =
+          `<span class="currency-label" data-i="${i}">${flag}
+             <span class="lbl-text"><span>${code} <span class="chev">▾</span></span><span class="cur-name">${name}</span></span>
+           </span>
+           <span class="value-box">
+             <span class="currency-expr" id="expr-${code}"></span>
+             <span class="currency-value" id="val-${code}">0</span>
+           </span>`;
+        // Kur adına (bayrak/kod) dokun → kuru değiştir; satırın geri kalanına dokun → o kuru seç
+        row.querySelector('.currency-label').addEventListener('click', ev => { ev.stopPropagation(); openSheet(i); });
+        row.addEventListener('click', () => selectCurrency(code));
+        rowsEl.appendChild(row);
+      });
+      render();
+    }
+
+    // ---------- Kur seçme paneli ----------
+    const sheetBg = document.getElementById('sheetBg');
+
+    function openSheet(i) {
+      editIndex = i;
+      const current = selected[i];
+      document.getElementById('sheetTitle').textContent = current + ' yerine…';
+      const list = document.getElementById('sheetList');
+      list.innerHTML = '';
+      Object.keys(META).filter(c => rates[c]).forEach(code => {
+        const [flag, name] = META[code];
+        const el = document.createElement('div');
+        el.className = 'opt' + (code === current ? ' cur' : '');
+        const tag = code === current ? '✓' : (selected.includes(code) ? 'listede' : '');
+        el.innerHTML = `<span class="f">${flag}</span><span class="c">${code}</span><span class="n">${name}</span><span class="tag">${tag}</span>`;
+        el.addEventListener('click', () => pickCurrency(code));
+        list.appendChild(el);
+      });
+      sheetBg.classList.add('open');
+    }
+    function closeSheet() { sheetBg.classList.remove('open'); editIndex = -1; }
+
+    function pickCurrency(code) {
+      const old = selected[editIndex];
+      if (code !== old) {
+        const other = selected.indexOf(code);
+        if (other >= 0) selected[other] = old;       // zaten listedeyse yer değiştir
+        selected[editIndex] = code;
+        // Aktif satırın kuru değiştiyse tutar yeni kura çevrilerek korunur
+        if (old === activeCurrency && other < 0) {
+          const v = round2(convert(currentValue(), old, code));
+          currentInput = v === 0 ? "0" : String(v);
+          activeCurrency = code;
+          freshEntry = true;
+        }
+        saveSelected();
+        buildRows();
+      }
+      closeSheet();
+    }
+
+    document.getElementById('sheetClose').addEventListener('click', closeSheet);
+    sheetBg.addEventListener('click', e => { if (e.target === sheetBg) closeSheet(); });
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      const val = currentValue(), from = activeCurrency;
+      selected = DEFAULT_SELECTED.slice();
+      saveSelected();
+      if (!selected.includes(from)) {
+        activeCurrency = selected[0];
+        const v = round2(convert(val, from, activeCurrency));
+        currentInput = v === 0 ? "0" : String(v);
+        freshEntry = true;
+      }
+      closeSheet();
+      buildRows();
+    });
+
+    document.querySelectorAll('.btn').forEach(b =>
+      b.addEventListener('click', () => pressKey(b.dataset.k))
+    );
+
+    // ---------- Hesap mantığı ----------
+    function safeEval(str) {
+      const expr = str.replace(/×/g, '*').replace(/÷/g, '/');
+      if (!/^[0-9+\-*/.\s]*$/.test(expr)) throw new Error('bad');
+      const v = Function('"use strict"; return (' + expr + ')')();
+      if (!isFinite(v)) throw new Error('inf');
+      return v;
+    }
+
+    function currentValue() {
+      try { return safeEval(currentInput) || 0; }
+      catch (e) {
+        const clean = currentInput.replace(/[+\-×÷.]+$/, '');
+        try { return safeEval(clean) || 0; } catch (err) { return 0; }
+      }
+    }
+
+    function convert(value, from, to) {
+      if (!rates[from] || !rates[to]) return 0;
+      return value / rates[from] * rates[to];
+    }
+    const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+    const fmt = v => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+
+    function fmtExpr(expr) {
+      return expr
+        .replace(/\d+(\.\d*)?/g, m => {
+          const [i, d] = m.split('.');
+          const intPart = Number(i).toLocaleString('tr-TR');
+          return d !== undefined ? intPart + ',' + d : intPart;
+        })
+        .replace(/([+\-×÷])/g, ' $1 ');
+    }
+
+    // Para birimi değiştirince o hücrede görünen değer korunur ve yeni başlangıç değeri olur
+    function selectCurrency(code) {
+      if (code === activeCurrency) return;
+      const v = round2(convert(currentValue(), activeCurrency, code));
+      currentInput = v === 0 ? "0" : String(v);
+      activeCurrency = code;
+      freshEntry = true;
+      try { localStorage.setItem('cn_active', code); } catch (e) {}
+      document.querySelectorAll('.currency-row').forEach(r =>
+        r.classList.toggle('active', r.dataset.code === code)
+      );
+      render();
+    }
+
+    function lastNumber(str) {
+      const parts = str.split(/[+\-×÷]/);
+      return parts[parts.length - 1];
+    }
+
+    function pressKey(key) {
+      if (key === 'C') {
+        currentInput = "0"; freshEntry = false;
+      } else if (key === 'DEL') {
+        freshEntry = false;
+        currentInput = currentInput.slice(0, -1) || "0";
+        if (currentInput === '-') currentInput = "0";
+      } else if (key === '%') {
+        currentInput = String(currentValue() / 100); freshEntry = true;
+      } else if (key === '=') {
+        currentInput = String(round2(currentValue())); freshEntry = true;
+      } else if (OPS.includes(key)) {
+        freshEntry = false;
+        const lastChar = currentInput.slice(-1);
+        if (OPS.includes(lastChar) || lastChar === '.') currentInput = currentInput.slice(0, -1) + key;
+        else currentInput += key;
+      } else if (key === '.') {
+        if (freshEntry) { currentInput = "0."; freshEntry = false; }
+        else if (!lastNumber(currentInput).includes('.')) {
+          currentInput += OPS.includes(currentInput.slice(-1)) ? '0.' : '.';
+        }
+      } else { // rakam
+        if (freshEntry) { currentInput = key; freshEntry = false; }
+        else if (lastNumber(currentInput) === '0') currentInput = currentInput.slice(0, -1) + key;
+        else currentInput += key;
+      }
+      render();
+    }
+
+    function render() {
+      const base = currentValue();
+      selected.forEach(code => {
+        const valEl = document.getElementById('val-' + code);
+        if (!valEl) return;
+        valEl.textContent = rates[code] ? fmt(convert(base, activeCurrency, code)) : '—';
+        const ex = document.getElementById('expr-' + code);
+        const hasOp = code === activeCurrency && /[+\-×÷]/.test(currentInput.slice(1));
+        let txt = hasOp ? fmtExpr(currentInput) : '';
+        if (txt.length > 30) txt = '…' + txt.slice(-29);
+        ex.textContent = txt;
+        ex.classList.toggle('show', hasOp);
+      });
+    }
+
+    // ---------- Kurlar ----------
+    function setStatus(text, cls) {
+      const s = document.getElementById('status');
+      s.textContent = text;
+      s.className = 'status-badge ' + (cls || '');
+    }
+
+    function applyRates(r, label, cls) {
+      rates = Object.assign({}, rates, r, { USD: 1 });
+      setStatus(label, cls);
+      render();
+    }
+
+    async function fetchJSON(url) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 10000);
+      try {
+        const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store', redirect: 'follow' });
+        if (!r.ok) throw new Error(r.status);
+        return await r.json();
+      } finally { clearTimeout(t); }
+    }
+
+    function saveRates(obj) {
+      try { localStorage.setItem('cn_rates2', JSON.stringify(obj)); } catch (e) {}
+    }
+
+    async function loadRates() {
+      // 1) Son kaydedilen kurlar (anında açılış + internetsiz kullanım)
+      try {
+        const c = JSON.parse(localStorage.getItem('cn_rates2') || 'null');
+        if (c && c.rates) applyRates(c.rates, c.label + ' (kayıtlı)', '');
+      } catch (e) {}
+
+      if (!navigator.onLine) { setStatus('Çevrimdışı', 'warn'); return; }
+
+      // 2) Birincil: Apps Script → TCMB döviz satış kurları
+      if (API_URL.startsWith('http')) {
+        try {
+          const d = await fetchJSON(API_URL + (API_URL.includes('?') ? '&' : '?') + 'format=json');
+          if (d && d.rates && d.rates.TRY) {
+            const label = d.source === 'TCMB' ? 'TCMB ' + (d.date || '') : 'Güncellendi';
+            saveRates({ rates: d.rates, label });
+            applyRates(d.rates, label, d.source === 'TCMB' ? 'ok' : 'warn');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // 3) Yedek: open.er-api.com (TCMB değil, küçük fark olabilir)
+      try {
+        const d = await fetchJSON('https://open.er-api.com/v6/latest/USD');
+        if (d && d.rates) {
+          const r = {};
+          Object.keys(META).forEach(c => { if (d.rates[c]) r[c] = d.rates[c]; });
+          saveRates({ rates: r, label: 'Yedek kaynak' });
+          applyRates(r, 'Yedek kaynak', 'warn');
+          return;
+        }
+      } catch (e) {}
+
+      setStatus('Güncellenemedi', 'warn');
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') loadRates();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+
+    buildRows();
+    loadRates();
+  </script>
+</body>
+</html>
