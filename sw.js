@@ -1,6 +1,6 @@
 // Uygulama dosyalarını telefonda saklar; internet yokken de açılır.
 // index.html'i değiştirdiğinizde aşağıdaki sürüm numarasını 1 artırın (v2, v3...).
-const CACHE = 'converter-neo-v2';
+const CACHE = 'converter-neo-v3';
 const FILES = [
   './',
   './index.html',
