@@ -86,6 +86,9 @@
       border: 1.5px solid transparent;
       transition: background 0.15s ease, border-color 0.15s ease;
       cursor: pointer;
+      position: relative;
+      height: 66px;            /* sabit yükseklik: işlem satırı çıkınca ekran kaymaz */
+      flex-shrink: 0;
     }
 
     .currency-row.active {
@@ -111,7 +114,11 @@
     }
 
     .currency-expr {
-      font-size: 13px;
+      position: absolute;      /* akışın dışında: satır boyu değişmez */
+      top: 5px;
+      right: 20px;
+      font-size: 12px;
+      max-width: 60%;
       color: #a08560;
       white-space: nowrap;
       overflow: hidden;
@@ -129,6 +136,8 @@
       font-variant-numeric: tabular-nums;
     }
     .currency-row.active .currency-value { color: #d4a359; }
+    .currency-value { transition: transform 0.12s ease; }
+    .currency-row.has-expr .currency-value { transform: translateY(7px); }
 
     .keypad {
       display: grid;
@@ -157,8 +166,10 @@
     .btn-zero { grid-column: span 2; justify-content: flex-start; padding-left: 28px; }
 
     @media (max-height: 700px) {
-      .btn { height: 54px; font-size: 24px; }
-      .currency-row { min-height: 56px; padding: 10px 18px; }
+      .btn { height: 48px; font-size: 24px; }
+      .currency-row { height: 52px; min-height: 52px; padding: 6px 18px; }
+      .currency-value { font-size: 23px; }
+      .cur-name { display: none; }
       .currency-container { gap: 8px; }
       .keypad { gap: 10px; }
     }
@@ -257,7 +268,7 @@
   <script>
     /* ================== AYARLAR ================== */
     // Apps Script "Web uygulaması" dağıtım linkini buraya yapıştırın (…/exec ile biter).
-    const API_URL = "https://script.google.com/macros/s/AKfycbwL1LjXBQTmVJkztiGOSFBpyR--vAjJT4lgzPPlVR8LCze-nqLs1-fEu9ixhMRrpenALw/exec";
+    const API_URL = "BURAYA_APPS_SCRIPT_EXEC_LINKI";
 
     // İlk açılışta gelen 5 kur
     const DEFAULT_SELECTED = ['USD', 'EUR', 'TRY', 'GBP', 'CNY'];
@@ -492,6 +503,7 @@
         if (txt.length > 30) txt = '…' + txt.slice(-29);
         ex.textContent = txt;
         ex.classList.toggle('show', hasOp);
+        valEl.closest('.currency-row').classList.toggle('has-expr', hasOp);
       });
     }
 
