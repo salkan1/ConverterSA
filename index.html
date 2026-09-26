@@ -334,7 +334,7 @@
         row.dataset.code = code;
         row.innerHTML =
           `<span class="currency-label" data-i="${i}">${flag}
-             <span class="lbl-text"><span>${code} <span class="chev">▾</span></span><span class="cur-name">${name}</span></span>
+             <span class="lbl-text"><span>${code === 'TRY' ? 'TL' : code} <span class="chev">▾</span></span><span class="cur-name">${name}</span></span>
            </span>
            <span class="value-box">
              <span class="currency-expr" id="expr-${code}"></span>
@@ -354,7 +354,7 @@
     function openSheet(i) {
       editIndex = i;
       const current = selected[i];
-      document.getElementById('sheetTitle').textContent = current + ' yerine…';
+      document.getElementById('sheetTitle').textContent = (current === 'TRY' ? 'TL' : current) + ' yerine…';
       const list = document.getElementById('sheetList');
       list.innerHTML = '';
       Object.keys(META).filter(c => rates[c]).forEach(code => {
@@ -362,7 +362,7 @@
         const el = document.createElement('div');
         el.className = 'opt' + (code === current ? ' cur' : '');
         const tag = code === current ? '✓' : (selected.includes(code) ? 'listede' : '');
-        el.innerHTML = `<span class="f">${flag}</span><span class="c">${code}</span><span class="n">${name}</span><span class="tag">${tag}</span>`;
+        el.innerHTML = `<span class="f">${flag}</span><span class="c">${code === 'TRY' ? 'TL' : code}</span><span class="n">${name}</span><span class="tag">${tag}</span>`;
         el.addEventListener('click', () => pickCurrency(code));
         list.appendChild(el);
       });
